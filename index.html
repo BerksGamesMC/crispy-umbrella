@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KK VIP PRO - Advanced</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    
+    <style>
+        :root { --orange: #ff8c00; --neon: #ffaa00; --bg: #0a0a0a; }
+        
+        /* Yenilənmiş Arxa Plan */
+        body { 
+            background: radial-gradient(circle at center, #1a1a1a 0%, #000 100%);
+            color: white; 
+            font-family: 'Segoe UI', Roboto, sans-serif; 
+            margin: 0; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container { 
+            background: rgba(20, 20, 20, 0.95); 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 1px solid var(--orange); 
+            width: 100%; 
+            max-width: 400px; 
+            text-align: center; 
+            box-shadow: 0 0 30px rgba(255, 140, 0, 0.15);
+            backdrop-filter: blur(10px);
+        }
+
+        h2 { color: var(--orange); text-transform: uppercase; letter-spacing: 2px; margin-bottom: 25px; }
+
+        .customer-info-card {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: left;
+            margin: 15px 0;
+            border-left: 4px solid var(--orange);
+        }
+
+        .customer-info-card p { margin: 5px 0; font-size: 14px; color: #ccc; }
+        .customer-info-card b { color: var(--orange); font-size: 16px; }
+
+        input { 
+            width: 100%; padding: 14px; margin: 10px 0; 
+            background: #111; border: 1px solid #333; 
+            color: white; border-radius: 10px; box-sizing: border-box; 
+        }
+
+        button { 
+            width: 100%; padding: 15px; background: var(--orange); 
+            border: none; color: black; font-weight: bold; 
+            cursor: pointer; border-radius: 10px; margin-top: 10px; 
+            transition: 0.3s; text-transform: uppercase;
+        }
+
+        button:hover { background: var(--neon); box-shadow: 0 0 15px var(--orange); }
+
+        .hidden { display: none; }
+        .qr-box { background: white; padding: 12px; display: inline-block; margin: 15px 0; border-radius: 12px; }
+        #reader { width: 100%; border-radius: 15px; overflow: hidden; border: 1px solid var(--orange); }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div id="page-home" class="container">
+        <h2 style="font-size: 28px;">KK VIP <span style="font-weight:100;">PRO</span></h2>
+        <button onclick="showPage('page-admin-login')">ADMİN LOGİN</button>
+        <button onclick="showPage('page-cust-login')" style="background:#222; color:var(--orange); border:1px solid var(--orange);">MÜŞTƏRİ LOGİN</button>
+    </div>
+
+    <div id="page-admin-login" class="container hidden">
+        <h2>ADMİN GİRİŞ</h2>
+        <input type="text" id="adm-u" placeholder="İstifadəçi Adı">
+        <input type="password" id="adm-p" placeholder="Şifrə">
+        <button onclick="loginAdmin()">DAXİL OL</button>
+        <button onclick="showPage('page-home')" style="background:none; color:#555;">İmtina</button>
+    </div>
+
+    <div id="page-cust-login" class="container hidden">
+        <h2>MÜŞTƏRİ GİRİŞ</h2>
+        <input type="text" id="cust-phone-input" placeholder="Telefon Nömrəsi">
+        <button onclick="loginCustomer()">GİRİŞ ET</button>
+        <button onclick="showPage('page-home')" style="background:none; color:#555;">Geri</button>
+    </div>
+
+    <div id="page-admin-panel" class="container hidden">
+        <h2>ADMİN MENYU</h2>
+        <button onclick="showPage('page-add-user')">YENİ MÜŞTƏRİ</button>
+        <button onclick="showPage('page-artir')">BALANS YÜKLƏ (+)</button>
+        <button onclick="openScanner()" style="background:#d32f2f; color:white;">QR SKAN ET (Bonus)</button>
+        <button onclick="location.reload()" style="background:#333;">SİSTEMDƏN ÇIX</button>
+    </div>
+
+    <div id="page-cust-panel" class="container hidden">
+        <h2>XOŞ GƏLDİNİZ</h2>
+        <div class="qr-box" id="cust-qr"></div>
+        <div style="font-size: 14px; color: #888;">Giriş üçün QR-ı təqdim edin</div>
+        <div style="font-size: 24px; margin: 15px 0;">Balans: <span id="my-bal" style="color:var(--orange)">0</span> AZN</div>
+        <button onclick="document.getElementById('dep-ui').classList.toggle('hidden')">BALANS ARTIR</button>
+        
+        <div id="dep-ui" class="hidden">
+            <input type="number" id="dep-val" placeholder="Məbləğ">
+            <button onclick="showBankInfo()">Təlimat Al</button>
+        </div>
+
+        <div id="bank-info" class="hidden" style="border:1px dashed var(--orange); padding:10px; margin-top:10px; font-size:12px; background:#111;">
+            Məbləğ: <b id="pay-v">0</b> AZN <br>
+            KART: <b>4127 2222 7057 1656</b>
+            <button onclick="sendWA()" style="background:#25D366; height:35px; color:white;">WhatsApp Qəbz</button>
+        </div>
+    </div>
+
+    <div id="page-scanner" class="container hidden">
+        <h2>QR OXUYUCU</h2>
+        <div id="reader"></div>
+        
+        <div id="withdraw-ui" class="hidden">
+            <div class="customer-info-card" id="scan-details">
+                <p>Ad Soyad: <b id="det-name">...</b></p>
+                <p>Ata Adı: <b id="det-father">...</b></p>
+                <p>Nömrə: <b id="det-phone">...</b></p>
+                <p>Cari Balans: <b id="det-bal" style="color:#00ff00">0</b> <b>AZN</b></p>
+            </div>
+            <input type="number" id="minus-val" placeholder="Çıxılacaq Bonus">
+            <button onclick="confirmWithdraw()" style="background:#d32f2f; color:white;">BONUSU ÇIX</button>
+        </div>
+        <button onclick="closeScanner()" style="background:#333;">MENYUYA QAYIT</button>
+    </div>
+
+    <div id="page-add-user" class="container hidden">
+        <h2>YENİ QEYDİYYAT</h2>
+        <input type="text" id="n-name" placeholder="Ad Soyad">
+        <input type="text" id="n-father" placeholder="Ata Adı">
+        <input type="text" id="n-phone" placeholder="Telefon">
+        <button onclick="addNewCustomer()">SİSTEMƏ YAZ</button>
+        <button onclick="showPage('page-admin-panel')">GERİ</button>
+    </div>
+
+    <div id="page-artir" class="container hidden">
+        <h2>BALANS ARTIR</h2>
+        <input type="text" id="t-phone" placeholder="Müştəri Telefonu">
+        <input type="number" id="t-amt" placeholder="Məbləğ (AZN)">
+        <button onclick="adminDeposit()">BALANSI YÜKLƏ</button>
+        <button onclick="showPage('page-admin-panel')">GERİ</button>
+    </div>
+</div>
+
+<script>
+const SUPA_URL = "https://fqeqbcxhjygsdeiyeodj.supabase.co";
+const SUPA_KEY = "sb_publishable_Yhs2BpMW34Xk9t1EeOwNtA_I6zTFKVh";
+const _supa = supabase.createClient(SUPA_URL, SUPA_KEY);
+
+let scanner = null;
+let targetPhone = "";
+
+function showPage(id) {
+    document.querySelectorAll('.container').forEach(c => c.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+}
+
+function loginAdmin() {
+    if(document.getElementById('adm-u').value === "ElçinVali1313" && document.getElementById('adm-p').value === "517012") {
+        showPage('page-admin-panel');
+    } else { alert("Giriş rədd edildi!"); }
+}
+
+async function loginCustomer() {
+    const p = document.getElementById('cust-phone-input').value;
+    const { data } = await _supa.from('customers').select('*').eq('phone', p).single();
+    if(data) {
+        document.getElementById('my-bal').innerText = data.balance;
+        document.getElementById('cust-qr').innerHTML = "";
+        new QRCode(document.getElementById("cust-qr"), { text: data.phone, width: 160, height: 160 });
+        showPage('page-cust-panel');
+    } else { alert("Müştəri tapılmadı!"); }
+}
+
+async function addNewCustomer() {
+    const { error } = await _supa.from('customers').insert([{
+        full_name: document.getElementById('n-name').value,
+        father_name: document.getElementById('n-father').value,
+        phone: document.getElementById('n-phone').value,
+        balance: 0
+    }]);
+    if(!error) { alert("Uğurla qeyd edildi!"); showPage('page-admin-panel'); }
+}
+
+async function adminDeposit() {
+    const p = document.getElementById('t-phone').value;
+    const a = parseFloat(document.getElementById('t-amt').value);
+    const { data } = await _supa.from('customers').select('balance').eq('phone', p).single();
+    if(data) {
+        await _supa.from('customers').update({ balance: (data.balance || 0) + a }).eq('phone', p);
+        alert("Balans artırıldı!");
+        showPage('page-admin-panel');
+    }
+}
+
+// --- QR SKANER FUNKSİYALARI (TƏKMİLLƏŞDİRİLMİŞ) ---
+async function openScanner() {
+    showPage('page-scanner');
+    document.getElementById('withdraw-ui').classList.add('hidden');
+    scanner = new Html5Qrcode("reader");
+    
+    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, async (txt) => {
+        targetPhone = txt;
+        // Müştəri məlumatlarını bazadan çəkək
+        const { data, error } = await _supa.from('customers').select('*').eq('phone', txt).single();
+        
+        if(data) {
+            document.getElementById('det-name').innerText = data.full_name;
+            document.getElementById('det-father').innerText = data.father_name;
+            document.getElementById('det-phone').innerText = data.phone;
+            document.getElementById('det-bal').innerText = data.balance;
+            
+            document.getElementById('withdraw-ui').classList.remove('hidden');
+            scanner.stop(); // Tapıldıqdan sonra kameranı dayandır
+        } else {
+            alert("QR Oxundu, amma bu nömrə bazada yoxdur!");
+            closeScanner();
+        }
+    }).catch(err => alert("Kamera xətası: " + err));
+}
+
+function closeScanner() { 
+    if(scanner) scanner.stop().catch(() => {}); 
+    showPage('page-admin-panel'); // Çıxan kimi ana menyuya atır
+}
+
+async function confirmWithdraw() {
+    const amt = parseFloat(document.getElementById('minus-val').value);
+    if(!amt || amt <= 0) return alert("Məbləği düzgün yazın!");
+
+    const { data } = await _supa.from('customers').select('balance').eq('phone', targetPhone).single();
+    
+    if(data && data.balance >= amt) {
+        const { error } = await _supa.from('customers').update({ balance: data.balance - amt }).eq('phone', targetPhone);
+        if(!error) {
+            alert("Məbləğ çıxıldı. Menyuya qayıdırsınız.");
+            showPage('page-admin-panel'); // İşlem bitəndə menyuya atır
+        }
+    } else { alert("Kifayət qədər balans yoxdur!"); }
+}
+
+function showBankInfo() {
+    const v = document.getElementById('dep-val').value;
+    document.getElementById('pay-v').innerText = v;
+    document.getElementById('bank-info').classList.remove('hidden');
+}
+
+function sendWA() {
+    const v = document.getElementById('pay-v').innerText;
+    window.open(`https://wa.me/994505974648?text=Salam, ${v} AZN balans artırmaq üçün ödəniş etdim.`);
+}
+
+// Anti-Pause ping
+setInterval(async () => { await _supa.from('customers').select('id').limit(1); }, 180000);
+</script>
+</body>
+</html>
